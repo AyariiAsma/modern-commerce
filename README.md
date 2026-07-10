@@ -51,3 +51,6 @@ modern-commerce/
 4. **Mock Logins**:
    - **Customer**: `alice@example.com` / `password123`
    - **Admin**: `admin@example.com` / `adminpassword`
+
+5. **Test**:
+
