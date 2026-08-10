@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useDatabase } from './DatabaseContext';
+import { authService } from '../services/api';
 
 const AuthContext = createContext();
 
@@ -12,54 +12,54 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-    const { users, addCustomer } = useDatabase();
-    const [currentUser, setCurrentUser] = useState(() => {
-        const saved = localStorage.getItem('ecomm_current_user');
-        return saved ? JSON.parse(saved) : null;
-    });
+    const [currentUser, setCurrentUser] = useState(null);
+    const [loading, setLoading] = useState(true);
 
+    // Persist login state using JWT
     useEffect(() => {
-        if (currentUser) {
-            localStorage.setItem('ecomm_current_user', JSON.stringify(currentUser));
-        } else {
-            localStorage.removeItem('ecomm_current_user');
-        }
-    }, [currentUser]);
+        const verifySession = async () => {
+            const token = localStorage.getItem('ecomm_token');
+            if (token) {
+                try {
+                    const response = await authService.getMe();
+                    setCurrentUser(response.data);
+                } catch (err) {
+                    console.error('Session validation failed:', err);
+                    localStorage.removeItem('ecomm_token');
+                    setCurrentUser(null);
+                }
+            }
+            setLoading(false);
+        };
+        verifySession();
+    }, []);
 
-    const login = (email, password) => {
-        const foundUser = users.find(u => u.email === email && u.password === password);
-        if (foundUser) {
-            setCurrentUser({
-                id: foundUser.id,
-                name: foundUser.name,
-                email: foundUser.email,
-                role: foundUser.role,
-                avatar: foundUser.avatar
-            });
+    const login = async (email, password) => {
+        try {
+            const response = await authService.login(email, password);
+            const { user, token } = response.data;
+            setCurrentUser(user);
             return { success: true };
+        } catch (err) {
+            const message = err.response?.data?.message || 'Invalid email or password';
+            return { success: false, error: message };
         }
-        return { success: false, error: 'Invalid email or password' };
     };
 
-    const register = (name, email, password) => {
-        // Check if email already exists
-        const emailExists = users.some(u => u.email === email);
-        if (emailExists) {
-            return { success: false, error: 'Email already registered' };
+    const register = async (name, email, password, phone) => {
+        try {
+            const response = await authService.register(name, email, password, phone);
+            const { user } = response.data;
+            setCurrentUser(user);
+            return { success: true };
+        } catch (err) {
+            const message = err.response?.data?.message || 'Email already exists or invalid data';
+            return { success: false, error: message };
         }
-
-        const newUser = addCustomer({ name, email, password });
-        setCurrentUser({
-            id: newUser.id,
-            name: newUser.name,
-            email: newUser.email,
-            role: newUser.role,
-            avatar: newUser.avatar
-        });
-        return { success: true };
     };
 
-    const logout = () => {
+    const logout = async () => {
+        await authService.logout();
         setCurrentUser(null);
     };
 
@@ -67,6 +67,7 @@ export const AuthProvider = ({ children }) => {
         user: currentUser,
         isAuthenticated: !!currentUser,
         isAdmin: currentUser?.role === 'admin',
+        loading,
         login,
         register,
         logout
@@ -74,7 +75,8 @@ export const AuthProvider = ({ children }) => {
 
     return (
         <AuthContext.Provider value={value}>
-            {children}
+            {!loading && children}
         </AuthContext.Provider>
     );
 };
+

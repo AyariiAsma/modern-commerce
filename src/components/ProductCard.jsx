@@ -10,16 +10,21 @@ export default function ProductCard({ product }) {
     const { settings } = useDatabase();
     const { t } = useLanguage();
 
-    const isOutOfStock = product.stock <= 0;
-    const originalPrice = product.price;
-    const isDiscounted = product.discountPrice !== null;
-    const curPrice = isDiscounted ? product.discountPrice : originalPrice;
+    // Support both DB field names (stock_quantity, discount_price) and legacy mock names
+    const stockQty = product.stock_quantity !== undefined ? product.stock_quantity : (product.stock || 0);
+    const discountPrice = product.discount_price !== undefined ? product.discount_price : product.discountPrice;
+    const categoryLabel = product.category_name || product.category_slug || product.category || '';
+    const rating = product.rating || 4.5;
 
-    // Use current store currency
+    const isOutOfStock = stockQty <= 0;
+    const isDiscounted = discountPrice !== null && discountPrice !== undefined && discountPrice > 0;
+    const curPrice = isDiscounted ? parseFloat(discountPrice) : parseFloat(product.price);
+    const originalPrice = parseFloat(product.price);
+
     const currency = settings?.currency || '$';
 
     const handleAddToCart = (e) => {
-        e.preventDefault(); // Prevent navigating to detail page when clicking the button
+        e.preventDefault();
         if (!isOutOfStock) {
             addToCart(product, 1);
         }
@@ -31,7 +36,7 @@ export default function ProductCard({ product }) {
             className="group bg-white border border-slate-100 rounded-2xl overflow-hidden hover:border-indigo-500 hover:shadow-lg transition-all duration-300 flex flex-col h-full"
         >
             {/* Product Image */}
-            <div className="relative aspect-square w-full overflow-hidden bg-slate-150">
+            <div className="relative aspect-square w-full overflow-hidden bg-slate-100">
                 <img
                     src={product.image}
                     alt={product.name}
@@ -60,10 +65,10 @@ export default function ProductCard({ product }) {
                 <div className="space-y-1">
                     {/* Category */}
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
-                        {product.category}
+                        {categoryLabel}
                     </span>
                     {/* Name */}
-                    <h3 className="font-semibold text-slate-800 text-sm leading-snug line-clamp-2 group-hover:text-indigo-650 transition-colors">
+                    <h3 className="font-semibold text-slate-800 text-sm leading-snug line-clamp-2 group-hover:text-indigo-600 transition-colors">
                         {product.name}
                     </h3>
                 </div>
@@ -74,7 +79,7 @@ export default function ProductCard({ product }) {
                         {/* Rating */}
                         <div className="flex items-center space-x-1 mb-1">
                             <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
-                            <span className="text-[11px] font-bold text-slate-550">{product.rating}</span>
+                            <span className="text-[11px] font-bold text-slate-500">{rating}</span>
                         </div>
 
                         {/* Pricing */}

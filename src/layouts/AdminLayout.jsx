@@ -13,7 +13,12 @@ import {
     X,
     UserCheck,
     Settings,
-    Globe
+    Globe,
+    Sparkles,
+    Package,
+    Tag,
+    Receipt,
+    Star
 } from 'lucide-react';
 
 export default function AdminLayout() {
@@ -31,9 +36,15 @@ export default function AdminLayout() {
         { name: t('adminDashboardTitle'), path: '/admin', icon: LayoutDashboard },
         { name: t('invProductsTitle'), path: '/admin/products', icon: ShoppingBag },
         { name: t('taxoCategoriesTitle'), path: '/admin/categories', icon: Grid },
+        { name: 'Stock', path: '/admin/stock', icon: Package },
+        { name: 'Promotions', path: '/admin/promotions', icon: Tag },
+        { name: 'Banners', path: '/admin/banners', icon: Sparkles },
         { name: t('ordersManagerTitle'), path: '/admin/orders', icon: ShoppingCart },
+        { name: 'Invoices & CN', path: '/admin/invoices', icon: Receipt },
+        { name: 'Loyalty', path: '/admin/loyalty', icon: Star },
         { name: t('settingsPanelTitle'), path: '/admin/settings', icon: Settings },
     ];
+
 
     return (
         <div className={`flex h-screen bg-slate-50 overflow-hidden ${isRtl ? 'flex-row-reverse' : ''}`}>

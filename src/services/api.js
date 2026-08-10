@@ -1,209 +1,266 @@
-// Mock API endpoints simulating Axios requests
-// In a real application, you would import axios and make requests to a base URL:
-// import axios from 'axios';
-// const API = axios.create({ baseURL: 'https://api.yourdomain.com/api' });
+import axios from 'axios';
 
-// Simple delay helper to simulate network latency
-const delay = (ms = 400) => new Promise(resolve => setTimeout(resolve, ms));
+const API = axios.create({
+    baseURL: 'http://localhost:5001/api'
+});
 
-// Helper to fetch directly from localStorage (in sync with DatabaseContext)
-const getStoredData = (key, defaultData) => {
-    const saved = localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : defaultData;
-};
-
-const saveStoredData = (key, data) => {
-    localStorage.setItem(key, JSON.stringify(data));
-};
+// Request interceptor to automatically attach JWT token if available
+API.interceptors.request.use((config) => {
+    const token = localStorage.getItem('ecomm_token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+}, (error) => {
+    return Promise.reject(error);
+});
 
 export const authService = {
     login: async (email, password) => {
-        await delay(300);
-        const users = getStoredData('ecomm_users', []);
-        const user = users.find(u => u.email === email && u.password === password);
-        if (user) {
-            const sessionUser = { id: user.id, name: user.name, email: user.email, role: user.role, avatar: user.avatar };
-            return { data: { token: 'mock-jwt-token-xyz', user: sessionUser } };
+        const response = await API.post('/auth/login', { email, password });
+        if (response.data.token) {
+            localStorage.setItem('ecomm_token', response.data.token);
         }
-        throw { response: { status: 401, data: { message: 'Invalid credentials' } } };
+        return response;
     },
 
-    register: async (name, email, password) => {
-        await delay(300);
-        const users = getStoredData('ecomm_users', []);
-        if (users.some(u => u.email === email)) {
-            throw { response: { status: 400, data: { message: 'Email already exists' } } };
+    register: async (name, email, password, phone) => {
+        const response = await API.post('/auth/register', { name, email, password, phone });
+        if (response.data.token) {
+            localStorage.setItem('ecomm_token', response.data.token);
         }
-        const newUser = {
-            id: `user_${Date.now()}`,
-            name,
-            email,
-            password,
-            role: 'customer',
-            avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'
-        };
-        users.push(newUser);
-        saveStoredData('ecomm_users', users);
-        const sessionUser = { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role, avatar: newUser.avatar };
-        return { data: { token: 'mock-jwt-token-xyz', user: sessionUser } };
+        return response;
+    },
+
+    logout: async () => {
+        localStorage.removeItem('ecomm_token');
+        return { data: { success: true } };
+    },
+
+    getMe: async () => {
+        return await API.get('/auth/me');
+    },
+
+    updateMe: async (profileData) => {
+        return await API.put('/auth/me', profileData);
     }
 };
 
 export const productService = {
-    getAll: async () => {
-        await delay(400);
-        const products = getStoredData('ecomm_products', []);
-        return { data: products };
+    getAll: async (params = {}) => {
+        return await API.get('/products', { params });
     },
 
     getById: async (id) => {
-        await delay(200);
-        const products = getStoredData('ecomm_products', []);
-        const product = products.find(p => p.id === id);
-        if (product) {
-            return { data: product };
-        }
-        throw { response: { status: 404, data: { message: 'Product not found' } } };
+        return await API.get(`/products/${id}`);
     },
 
     create: async (productData) => {
-        await delay(400);
-        const products = getStoredData('ecomm_products', []);
-        const newProduct = {
-            ...productData,
-            id: `prod_${Date.now()}`,
-            rating: 5.0,
-            reviewsCount: 0,
-            price: parseFloat(productData.price),
-            discountPrice: productData.discountPrice ? parseFloat(productData.discountPrice) : null,
-            stock: parseInt(productData.stock, 10),
-            featured: productData.featured || false
-        };
-        products.unshift(newProduct);
-        saveStoredData('ecomm_products', products);
-        return { data: newProduct };
+        return await API.post('/products', productData);
     },
 
     update: async (id, updatedData) => {
-        await delay(400);
-        const products = getStoredData('ecomm_products', []);
-        let updatedProduct = null;
-        const nextProducts = products.map(p => {
-            if (p.id === id) {
-                updatedProduct = {
-                    ...p,
-                    ...updatedData,
-                    price: parseFloat(updatedData.price),
-                    discountPrice: updatedData.discountPrice ? parseFloat(updatedData.discountPrice) : null,
-                    stock: parseInt(updatedData.stock, 10)
-                };
-                return updatedProduct;
-            }
-            return p;
-        });
-        if (!updatedProduct) {
-            throw { response: { status: 404, data: { message: 'Product not found' } } };
-        }
-        saveStoredData('ecomm_products', nextProducts);
-        return { data: updatedProduct };
+        return await API.put(`/products/${id}`, updatedData);
     },
 
     delete: async (id) => {
-        await delay(300);
-        const products = getStoredData('ecomm_products', []);
-        const filtered = products.filter(p => p.id !== id);
-        saveStoredData('ecomm_products', filtered);
-        return { data: { success: true } };
+        return await API.delete(`/products/${id}`);
     }
 };
 
 export const categoryService = {
     getAll: async () => {
-        await delay(300);
-        const categories = getStoredData('ecomm_categories', []);
-        return { data: categories };
+        return await API.get('/categories');
     },
 
     create: async (categoryData) => {
-        await delay(300);
-        const categories = getStoredData('ecomm_categories', []);
-        const newCategory = {
-            ...categoryData,
-            id: `cat_${Date.now()}`,
-            slug: categoryData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
-        };
-        categories.push(newCategory);
-        saveStoredData('ecomm_categories', categories);
-        return { data: newCategory };
+        return await API.post('/categories', categoryData);
     },
 
     update: async (id, updatedData) => {
-        await delay(300);
-        const categories = getStoredData('ecomm_categories', []);
-        let updatedCategory = null;
-        const nextCategories = categories.map(c => {
-            if (c.id === id) {
-                updatedCategory = {
-                    ...c,
-                    ...updatedData,
-                    slug: (updatedData.name || c.name).toLowerCase().replace(/[^a-z0-9]+/g, '-')
-                };
-                return updatedCategory;
-            }
-            return c;
-        });
-        if (!updatedCategory) {
-            throw { response: { status: 404, data: { message: 'Category not found' } } };
-        }
-        saveStoredData('ecomm_categories', nextCategories);
-        return { data: updatedCategory };
+        return await API.put(`/categories/${id}`, updatedData);
     },
 
     delete: async (id) => {
-        await delay(300);
-        const categories = getStoredData('ecomm_categories', []);
-        const filtered = categories.filter(c => c.id !== id);
-        saveStoredData('ecomm_categories', filtered);
-        return { data: { success: true } };
+        return await API.delete(`/categories/${id}`);
+    }
+};
+
+export const bannerService = {
+    getActive: async () => {
+        return await API.get('/banners');
+    },
+
+    getAll: async () => {
+        return await API.get('/banners/all');
+    },
+
+    create: async (bannerData) => {
+        return await API.post('/banners', bannerData);
+    },
+
+    update: async (id, updatedData) => {
+        return await API.put(`/banners/${id}`, updatedData);
+    },
+
+    delete: async (id) => {
+        return await API.delete(`/banners/${id}`);
+    }
+};
+
+export const addressService = {
+    getAll: async () => {
+        return await API.get('/addresses');
+    },
+
+    create: async (addressData) => {
+        return await API.post('/addresses', addressData);
+    },
+
+    update: async (id, updatedData) => {
+        return await API.put(`/addresses/${id}`, updatedData);
+    },
+
+    delete: async (id) => {
+        return await API.delete(`/addresses/${id}`);
+    },
+
+    setDefault: async (id) => {
+        return await API.put(`/addresses/${id}/default`);
     }
 };
 
 export const orderService = {
-    getAll: async () => {
-        await delay(400);
-        const orders = getStoredData('ecomm_orders', []);
-        return { data: orders };
+    getAll: async (params = {}) => {
+        return await API.get('/orders', { params });
+    },
+
+    getById: async (id) => {
+        return await API.get(`/orders/${id}`);
     },
 
     create: async (orderData) => {
-        await delay(400);
-        const orders = getStoredData('ecomm_orders', []);
-        const newOrder = {
-            ...orderData,
-            id: `ord_${Date.now()}`,
-            status: 'Pending',
-            createdAt: new Date().toISOString()
-        };
-        orders.unshift(newOrder);
-        saveStoredData('ecomm_orders', orders);
-        return { data: newOrder };
+        return await API.post('/orders', orderData);
     },
 
     updateStatus: async (id, status) => {
-        await delay(300);
-        const orders = getStoredData('ecomm_orders', []);
-        let updatedOrder = null;
-        const nextOrders = orders.map(o => {
-            if (o.id === id) {
-                updatedOrder = { ...o, status };
-                return updatedOrder;
-            }
-            return o;
-        });
-        if (!updatedOrder) {
-            throw { response: { status: 404, data: { message: 'Order not found' } } };
-        }
-        saveStoredData('ecomm_orders', nextOrders);
-        return { data: updatedOrder };
+        return await API.put(`/orders/${id}/status`, { status });
+    },
+
+    updatePaymentStatus: async (id, paymentStatus) => {
+        return await API.put(`/orders/${id}/payment`, { payment_status: paymentStatus });
     }
 };
+
+export const adminService = {
+    getStats: async () => {
+        return await API.get('/admin/stats');
+    }
+};
+
+export const settingsService = {
+    getSettings: async () => {
+        return await API.get('/settings');
+    },
+    updateSettings: async (settings) => {
+        return await API.put('/settings', { settings });
+    },
+    getLoyaltySettings: async () => {
+        return await API.get('/settings/loyalty');
+    },
+    updateLoyaltySettings: async (data) => {
+        return await API.put('/settings/loyalty', data);
+    }
+};
+
+export const stockService = {
+    getLocations: async () => {
+        return await API.get('/stock/locations');
+    },
+    getProductStock: async (productId) => {
+        return await API.get(`/stock/${productId}`);
+    },
+    getMovements: async (productId, limit = 20) => {
+        return await API.get(`/stock/${productId}/movements?limit=${limit}`);
+    },
+    adjustStock: async (data) => {
+        return await API.post('/stock/adjust', data);
+    }
+};
+
+export const promotionsService = {
+    getAll: async () => {
+        return await API.get('/promotions');
+    },
+    getById: async (id) => {
+        return await API.get(`/promotions/${id}`);
+    },
+    create: async (data) => {
+        return await API.post('/promotions', data);
+    },
+    update: async (id, data) => {
+        return await API.put(`/promotions/${id}`, data);
+    },
+    delete: async (id) => {
+        return await API.delete(`/promotions/${id}`);
+    }
+};
+
+export const invoiceService = {
+    getAll: async () => {
+        return await API.get('/invoices');
+    },
+    getCreditNotes: async () => {
+        return await API.get('/invoices/credit-notes');
+    },
+    issueCreditNote: async (data) => {
+        return await API.post('/invoices/credit-notes', data);
+    }
+};
+
+export const loyaltyService = {
+    // Customer
+    getMyLoyalty: async () => {
+        return await API.get('/loyalty/me');
+    },
+    getMyLoyaltyStatus: async () => {
+        return await API.get('/loyalty/status');
+    },
+    validateCode: async (code) => {
+        return await API.post('/loyalty/validate', { code });
+    },
+    // Admin
+    getSettings: async () => {
+        return await API.get('/loyalty/settings');
+    },
+    updateSettings: async (settingsData) => {
+        return await API.put('/loyalty/settings', settingsData);
+    },
+    getProgress: async () => {
+        return await API.get('/loyalty/progress');
+    },
+    getCodes: async () => {
+        return await API.get('/loyalty/codes');
+    },
+    cancelCode: async (id) => {
+        return await API.put(`/loyalty/codes/${id}/cancel`);
+    }
+};
+
+export const mediaService = {
+    upload: async (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return await API.post('/media/upload', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+    },
+
+    delete: async (id) => {
+        return await API.delete(`/media/${id}`);
+    }
+};
+
+export default API;

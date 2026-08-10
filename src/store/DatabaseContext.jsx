@@ -1,178 +1,221 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { INITIAL_PRODUCTS, INITIAL_CATEGORIES, INITIAL_USERS, INITIAL_ORDERS } from './MockDatabase';
+import { productService, categoryService, orderService, settingsService } from '../services/api';
 
 const DatabaseContext = createContext();
 
 export const useDatabase = () => {
-    const context = useContext(DatabaseContext);
-    if (!context) {
+    const context = useContext(BaseDatabaseContext());
+    // Safe wrapper check
+    const checkContext = useContext(DatabaseContext);
+    if (!checkContext) {
         throw new Error('useDatabase must be used within a DatabaseProvider');
     }
-    return context;
+    return checkContext;
 };
 
+// Safe placeholder to avoid syntax error
+function BaseDatabaseContext() {
+    return DatabaseContext;
+}
+
 export const DatabaseProvider = ({ children }) => {
-    // Inventory Products State
-    const [products, setProducts] = useState(() => {
-        const saved = localStorage.getItem('ecomm_products');
-        return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+    const [products, setProducts] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [orders, setOrders] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [settings, setSettings] = useState({
+        currency: 'DZD',
+        shippingFee: 15.00,
+        cashOnDeliveryOnly: true
     });
+    const [loyaltySettings, setLoyaltySettings] = useState({});
 
-    // Categories Taxonomy State
-    const [categories, setCategories] = useState(() => {
-        const saved = localStorage.getItem('ecomm_categories');
-        return saved ? JSON.parse(saved) : INITIAL_CATEGORIES;
-    });
+    const fetchProducts = async () => {
+        try {
+            const res = await productService.getAll();
+            setProducts(res.data);
+        } catch (err) {
+            console.error('Failed to fetch products from API:', err);
+        }
+    };
 
-    // User Directory State
-    const [users, setUsers] = useState(() => {
-        const saved = localStorage.getItem('ecomm_users');
-        return saved ? JSON.parse(saved) : INITIAL_USERS;
-    });
+    const fetchCategories = async () => {
+        try {
+            const res = await categoryService.getAll();
+            setCategories(res.data);
+        } catch (err) {
+            console.error('Failed to fetch categories from API:', err);
+        }
+    };
 
-    // Invoices Orders State
-    const [orders, setOrders] = useState(() => {
-        const saved = localStorage.getItem('ecomm_orders');
-        return saved ? JSON.parse(saved) : INITIAL_ORDERS;
-    });
+    const fetchOrders = async () => {
+        try {
+            const res = await orderService.getAll();
+            setOrders(res.data);
+        } catch (err) {
+            console.error('Failed to fetch orders from API:', err);
+        }
+    };
 
-    // Global Store Control Settings
-    const [settings, setSettings] = useState(() => {
-        const saved = localStorage.getItem('ecomm_settings');
-        return saved ? JSON.parse(saved) : {
-            currency: 'DZD',
-            shippingFee: 15.00,
-            cashOnDeliveryOnly: true
+    const fetchSettings = async () => {
+        try {
+            const res = await settingsService.getSettings();
+            if (res.data.settings?.general) {
+                setSettings({
+                    currency: res.data.settings.general.currency || 'DZD',
+                    shippingFee: parseFloat(res.data.settings.general.shippingFee || 15.00),
+                    cashOnDeliveryOnly: res.data.settings.general.cashOnDeliveryOnly === 'true'
+                });
+            }
+        } catch (err) {
+            console.error('Failed to fetch settings from API:', err);
+        }
+    };
+
+    // Load initial data
+    useEffect(() => {
+        const loadInitialData = async () => {
+            setLoading(true);
+            await Promise.all([fetchProducts(), fetchCategories(), fetchSettings()]);
+            // Only try to fetch orders if we have a token
+            if (localStorage.getItem('ecomm_token')) {
+                await fetchOrders();
+            }
+            setLoading(false);
         };
-    });
+        loadInitialData();
+    }, []);
 
-    // Sync to localStorage
+    // Refetch orders when token changes (login/logout events)
     useEffect(() => {
-        localStorage.setItem('ecomm_products', JSON.stringify(products));
-    }, [products]);
-
-    useEffect(() => {
-        localStorage.setItem('ecomm_categories', JSON.stringify(categories));
-    }, [categories]);
-
-    useEffect(() => {
-        localStorage.setItem('ecomm_users', JSON.stringify(users));
-    }, [users]);
-
-    useEffect(() => {
-        localStorage.setItem('ecomm_orders', JSON.stringify(orders));
-    }, [orders]);
-
-    useEffect(() => {
-        localStorage.setItem('ecomm_settings', JSON.stringify(settings));
-    }, [settings]);
+        const token = localStorage.getItem('ecomm_token');
+        if (token) {
+            fetchOrders();
+        } else {
+            setOrders([]);
+        }
+    }, [localStorage.getItem('ecomm_token')]);
 
     // Product CRUD Operations
-    const addProduct = (productData) => {
-        const newProduct = {
-            ...productData,
-            id: `prod_${Date.now()}`,
-            rating: 5.0,
-            reviewsCount: 0,
-            price: parseFloat(productData.price),
-            discountPrice: productData.discountPrice ? parseFloat(productData.discountPrice) : null,
-            stock: parseInt(productData.stock, 10),
-            featured: productData.featured || false
-        };
-        setProducts(prev => [newProduct, ...prev]);
-        return newProduct;
+    const addProduct = async (productData) => {
+        try {
+            const res = await productService.create(productData);
+            await fetchProducts();
+            return res.data;
+        } catch (err) {
+            console.error('Failed to add product via API:', err);
+            throw err;
+        }
     };
 
-    const updateProduct = (id, updatedData) => {
-        setProducts(prev => prev.map(p => {
-            if (p.id === id) {
-                return {
-                    ...p,
-                    ...updatedData,
-                    price: parseFloat(updatedData.price),
-                    discountPrice: updatedData.discountPrice ? parseFloat(updatedData.discountPrice) : null,
-                    stock: parseInt(updatedData.stock, 10)
-                };
-            }
-            return p;
-        }));
+    const updateProduct = async (id, updatedData) => {
+        try {
+            await productService.update(id, updatedData);
+            await fetchProducts();
+        } catch (err) {
+            console.error('Failed to update product via API:', err);
+            throw err;
+        }
     };
 
-    const deleteProduct = (id) => {
-        setProducts(prev => prev.filter(p => p.id !== id));
+    const deleteProduct = async (id) => {
+        try {
+            await productService.delete(id);
+            await fetchProducts();
+        } catch (err) {
+            console.error('Failed to delete product via API:', err);
+            throw err;
+        }
     };
 
     // Category CRUD Operations
-    const addCategory = (categoryData) => {
-        const newCategory = {
-            ...categoryData,
-            id: `cat_${Date.now()}`,
-            slug: categoryData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
-        };
-        setCategories(prev => [...prev, newCategory]);
-        return newCategory;
+    const addCategory = async (categoryData) => {
+        try {
+            const res = await categoryService.create(categoryData);
+            await fetchCategories();
+            return res.data;
+        } catch (err) {
+            console.error('Failed to add category via API:', err);
+            throw err;
+        }
     };
 
-    const updateCategory = (id, updatedData) => {
-        setCategories(prev => prev.map(c => {
-            if (c.id === id) {
-                return {
-                    ...c,
-                    ...updatedData,
-                    slug: (updatedData.name || c.name).toLowerCase().replace(/[^a-z0-9]+/g, '-')
-                };
-            }
-            return c;
-        }));
+    const updateCategory = async (id, updatedData) => {
+        try {
+            await categoryService.update(id, updatedData);
+            await fetchCategories();
+        } catch (err) {
+            console.error('Failed to update category via API:', err);
+            throw err;
+        }
     };
 
-    const deleteCategory = (id) => {
-        setCategories(prev => prev.filter(c => c.id !== id));
+    const deleteCategory = async (id) => {
+        try {
+            await categoryService.delete(id);
+            await fetchCategories();
+        } catch (err) {
+            console.error('Failed to delete category via API:', err);
+            throw err;
+        }
     };
 
     // Order Operations
-    const addOrder = (orderData) => {
-        const newOrder = {
-            ...orderData,
-            id: `ord_${Date.now()}`,
-            status: 'Pending',
-            createdAt: new Date().toISOString()
-        };
-        setOrders(prev => [newOrder, ...prev]);
-        return newOrder;
+    const addOrder = async (orderData) => {
+        try {
+            const res = await orderService.create(orderData);
+            if (localStorage.getItem('ecomm_token')) {
+                await fetchOrders();
+            }
+            return res.data;
+        } catch (err) {
+            console.error('Failed to place order via API:', err);
+            throw err;
+        }
     };
 
-    const updateOrderStatus = (id, status) => {
-        setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
+    const updateOrderStatus = async (id, status) => {
+        try {
+            await orderService.updateStatus(id, status);
+            if (localStorage.getItem('ecomm_token')) {
+                await fetchOrders();
+            }
+        } catch (err) {
+            console.error('Failed to update order status via API:', err);
+            throw err;
+        }
     };
 
-    // User Operations
-    const addCustomer = (userData) => {
-        const newUser = {
-            ...userData,
-            id: `user_${Date.now()}`,
-            role: 'customer',
-            avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'
-        };
-        setUsers(prev => [...prev, newUser]);
-        return newUser;
-    };
-
-    // Update settings configuration
-    const updateSettings = (newSettings) => {
-        setSettings(prev => ({
-            ...prev,
-            ...newSettings,
-            shippingFee: parseFloat(newSettings.shippingFee)
-        }));
+    // Update settings configuration via API
+    const updateSettings = async (newSettings) => {
+        try {
+            // Convert boolean to string for DB
+            const payload = [
+                { key: 'currency', value: newSettings.currency, group: 'general' },
+                { key: 'shippingFee', value: String(newSettings.shippingFee), group: 'general' },
+                { key: 'cashOnDeliveryOnly', value: String(newSettings.cashOnDeliveryOnly), group: 'general' }
+            ];
+            await settingsService.updateSettings(payload);
+            setSettings({
+                ...settings,
+                ...newSettings,
+                shippingFee: parseFloat(newSettings.shippingFee)
+            });
+        } catch (err) {
+            console.error('Failed to update settings API', err);
+            throw err;
+        }
     };
 
     const value = {
         products,
         categories,
-        users,
         orders,
         settings,
+        loading,
+        refetchProducts: fetchProducts,
+        refetchCategories: fetchCategories,
+        refetchOrders: fetchOrders,
         addProduct,
         updateProduct,
         deleteProduct,
@@ -181,13 +224,13 @@ export const DatabaseProvider = ({ children }) => {
         deleteCategory,
         addOrder,
         updateOrderStatus,
-        addCustomer,
         updateSettings
     };
 
     return (
         <DatabaseContext.Provider value={value}>
-            {children}
+            {!loading && children}
         </DatabaseContext.Provider>
     );
 };
+
