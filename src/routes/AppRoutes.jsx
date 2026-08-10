@@ -21,6 +21,11 @@ import Products from '../pages/admin/Products';
 import Categories from '../pages/admin/Categories';
 import Orders from '../pages/admin/Orders';
 import Settings from '../pages/admin/Settings';
+import Banners from '../pages/admin/Banners';
+import Stock from '../pages/admin/Stock';
+import Promotions from '../pages/admin/Promotions';
+import Invoices from '../pages/admin/Invoices';
+import Loyalty from '../pages/admin/Loyalty';
 
 export default function AppRoutes() {
     return (
@@ -42,9 +47,15 @@ export default function AppRoutes() {
                 <Route index element={<Dashboard />} />
                 <Route path="products" element={<Products />} />
                 <Route path="categories" element={<Categories />} />
+                <Route path="banners" element={<Banners />} />
                 <Route path="orders" element={<Orders />} />
+                <Route path="stock" element={<Stock />} />
+                <Route path="promotions" element={<Promotions />} />
+                <Route path="invoices" element={<Invoices />} />
+                <Route path="loyalty" element={<Loyalty />} />
                 <Route path="settings" element={<Settings />} />
             </Route>
+
 
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />

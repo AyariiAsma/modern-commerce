@@ -32,6 +32,13 @@ export default function Catalog() {
         setCurrentPage(1);
     }, [searchParams]);
 
+    // Helper: normalize product category to a slug string
+    const getCatSlug = (p) => p.category_slug || p.category || '';
+    const getEffectivePrice = (p) => {
+        const dp = p.discount_price !== undefined ? p.discount_price : p.discountPrice;
+        return (dp !== null && dp !== undefined && parseFloat(dp) > 0) ? parseFloat(dp) : parseFloat(p.price);
+    };
+
     // Filter and sort products
     const filteredProducts = useMemo(() => {
         let result = [...products];
@@ -40,33 +47,34 @@ export default function Catalog() {
         if (search) {
             const q = search.toLowerCase();
             result = result.filter(p =>
-                p.name.toLowerCase().includes(q) ||
-                p.description.toLowerCase().includes(q) ||
-                p.category.toLowerCase().includes(q)
+                (p.name || '').toLowerCase().includes(q) ||
+                (p.description || '').toLowerCase().includes(q) ||
+                (p.category_name || p.category_slug || p.category || '').toLowerCase().includes(q) ||
+                (p.SKU || '').toLowerCase().includes(q)
             );
         }
 
-        // Category filter
+        // Category filter (match by slug)
         if (selectedCategory) {
-            result = result.filter(p => p.category === selectedCategory);
+            result = result.filter(p => getCatSlug(p) === selectedCategory);
         }
 
         // Price range filter
         result = result.filter(p => {
-            const price = p.discountPrice !== null ? p.discountPrice : p.price;
+            const price = getEffectivePrice(p);
             return price >= priceRange[0] && price <= priceRange[1];
         });
 
         // Sorting
         switch (sortBy) {
             case 'price_asc':
-                result.sort((a, b) => (a.discountPrice || a.price) - (b.discountPrice || b.price));
+                result.sort((a, b) => getEffectivePrice(a) - getEffectivePrice(b));
                 break;
             case 'price_desc':
-                result.sort((a, b) => (b.discountPrice || b.price) - (a.discountPrice || a.price));
+                result.sort((a, b) => getEffectivePrice(b) - getEffectivePrice(a));
                 break;
             case 'rating':
-                result.sort((a, b) => b.rating - a.rating);
+                result.sort((a, b) => (b.rating || 4.5) - (a.rating || 4.5));
                 break;
             default:
                 break;

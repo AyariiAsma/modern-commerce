@@ -3,10 +3,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../../store/CartContext';
 import { useDatabase } from '../../store/DatabaseContext';
 import { useLanguage } from '../../store/LanguageContext';
-import { Plus, Minus, Trash2, ArrowRight, ShoppingBag, TicketPercent, Globe } from 'lucide-react';
+import { Plus, Minus, Trash2, ArrowRight, ShoppingBag, TicketPercent, Globe, Loader2 } from 'lucide-react';
+import { loyaltyService } from '../../services/api';
+import FidelityBanner from '../../components/FidelityBanner';
 
 export default function Cart() {
-    const { cart, updateQuantity, removeFromCart, cartTotal } = useCart();
+    const { cart, updateQuantity, removeFromCart, cartTotal, cartTotalHt, cartTotalTva } = useCart();
     const { settings } = useDatabase();
     const { t, isRtl } = useLanguage();
     const navigate = useNavigate();
@@ -14,8 +16,10 @@ export default function Cart() {
     // Promo code discounts
     const [promoCode, setPromoCode] = useState('');
     const [activeDiscount, setActiveDiscount] = useState(0); // decimal like 0.15
+    const [appliedCode, setAppliedCode] = useState('');
     const [codeError, setCodeError] = useState('');
     const [codeSuccess, setCodeSuccess] = useState('');
+    const [validatingCode, setValidatingCode] = useState(false);
 
     // Loaded from Database Settings configured by Admin
     const currency = settings?.currency || '$';
@@ -25,22 +29,36 @@ export default function Cart() {
     const discountAmount = cartTotal * activeDiscount;
     const finalSubtotal = cartTotal - discountAmount + shippingCost;
 
-    const handleApplyPromo = (e) => {
+    const handleApplyPromo = async (e) => {
         e.preventDefault();
         setCodeError('');
         setCodeSuccess('');
 
-        if (promoCode.trim().toUpperCase() === 'AURASTART') {
-            setActiveDiscount(0.15); // 15% off
-            setCodeSuccess(t('appliedPromo') + ': 15%');
-            setPromoCode('');
-        } else if (promoCode.trim()) {
-            setCodeError(t('promoError'));
+        const codeToValidate = promoCode.trim();
+        if (!codeToValidate) return;
+
+        setValidatingCode(true);
+        try {
+            const response = await loyaltyService.validateCode(codeToValidate);
+            if (response.data.success) {
+                const { discount_type, discount_value, code } = response.data;
+                const discountDecimal = discount_type === 'percentage' ? (discount_value / 100) : (discount_value / cartTotal);
+                setActiveDiscount(discountDecimal);
+                setAppliedCode(code);
+                setCodeSuccess(t('appliedPromo') + `: ${discount_value}${discount_type === 'percentage' ? '%' : ''}`);
+                setPromoCode('');
+            }
+        } catch (err) {
+            console.error(err);
+            const errMsg = err.response?.data?.message || t('promoError');
+            setCodeError(errMsg);
+        } finally {
+            setValidatingCode(false);
         }
     };
 
     const handleProceedCheckout = () => {
-        navigate('/checkout', { state: { discountPercent: activeDiscount } });
+        navigate('/checkout', { state: { discountPercent: activeDiscount, appliedCode: appliedCode } });
     };
 
     if (cart.length === 0) {
@@ -130,6 +148,7 @@ export default function Cart() {
 
                 {/* Totals Summary - Right */}
                 <aside className="space-y-6">
+                    <FidelityBanner currentCartTotal={finalSubtotal} />
                     <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-6">
                         <h3 className={`font-bold text-slate-800 text-base pb-3 border-b border-slate-100 ${isRtl ? 'text-right' : ''}`}>
                             {t('summary')}
@@ -138,8 +157,18 @@ export default function Cart() {
                         {/* Calculations items */}
                         <div className="space-y-3 text-sm">
                             <div className="flex justify-between text-slate-550">
-                                <span>{t('subtotal')} ({cart.length})</span>
-                                <span className="font-semibold text-slate-800">{currency}{cartTotal.toFixed(2)}</span>
+                                <span>{t('subtotal')} (HT)</span>
+                                <span className="font-semibold text-slate-800">{currency}{(cartTotalHt || 0).toFixed(2)}</span>
+                            </div>
+
+                            <div className="flex justify-between text-slate-550">
+                                <span>{t('tva')}</span>
+                                <span className="font-semibold text-slate-800">{currency}{(cartTotalTva || 0).toFixed(2)}</span>
+                            </div>
+
+                            <div className="flex justify-between text-slate-550 pt-2 border-t border-slate-50 border-dashed">
+                                <span>Total (TTC)</span>
+                                <span className="font-semibold text-slate-800">{currency}{(cartTotal || 0).toFixed(2)}</span>
                             </div>
 
                             {activeDiscount > 0 && (
@@ -172,12 +201,15 @@ export default function Cart() {
                                     placeholder={t('promoPlaceholder')}
                                     value={promoCode}
                                     onChange={(e) => setPromoCode(e.target.value)}
-                                    className="flex-1 bg-slate-50 border border-slate-205 text-slate-800 text-xs rounded-xl py-2 px-3 focus:outline-none focus:ring-1 focus:ring-indigo-500 uppercase font-semibold"
+                                    disabled={validatingCode}
+                                    className="flex-1 bg-slate-50 border border-slate-205 text-slate-800 text-xs rounded-xl py-2 px-3 focus:outline-none focus:ring-1 focus:ring-indigo-500 uppercase font-semibold disabled:opacity-60"
                                 />
                                 <button
                                     type="submit"
-                                    className="bg-slate-900 hover:bg-indigo-600 text-white font-bold text-xs px-4 py-2 rounded-xl transition-colors"
+                                    disabled={validatingCode || !promoCode.trim()}
+                                    className="bg-slate-900 hover:bg-indigo-600 text-white font-bold text-xs px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
+                                    {validatingCode ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
                                     {t('applyCode')}
                                 </button>
                             </form>
