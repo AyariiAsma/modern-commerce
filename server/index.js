@@ -55,6 +55,11 @@ app.get('/', (req, res) => {
     res.json({ message: 'E-Commerce REST API is running successfully.' });
 });
 
+// Health check endpoint for UptimeRobot / Cron jobs
+app.get('/api/health', (req, res) => {
+    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // DB Browser (dev only)
 mountDbBrowser(app);
 
