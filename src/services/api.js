@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+const API_URL = import.meta.env.VITE_API_URL || 'https://modern-commerce.onrender.com/api';
+
 const API = axios.create({
-    baseURL: 'http://localhost:5001/api'
+    baseURL: API_URL
 });
 
 // Request interceptor to automatically attach JWT token if available
@@ -260,6 +262,28 @@ export const mediaService = {
 
     delete: async (id) => {
         return await API.delete(`/media/${id}`);
+    }
+};
+
+export const warehouseService = {
+    lookupProduct: async (code) => {
+        return await API.get('/warehouse/product/lookup', { params: { code } });
+    },
+
+    importStock: async (product_id, quantity) => {
+        return await API.post('/warehouse/stock/import', { product_id, quantity });
+    },
+
+    getPendingOrders: async () => {
+        return await API.get('/warehouse/orders/pending');
+    },
+
+    getOrderDetails: async (orderId) => {
+        return await API.get('/warehouse/orders/' + orderId);
+    },
+
+    exportStock: async (orderId, product_id, quantity) => {
+        return await API.post('/warehouse/stock/export/' + orderId, { product_id, quantity });
     }
 };
 
