@@ -1,9 +1,11 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from '../store/AuthContext';
 
 // Layout shells
 import CustomerLayout from '../layouts/CustomerLayout';
 import AdminLayout from '../layouts/AdminLayout';
+import WarehouseLayout from '../pages/warehouse/WarehouseLayout';
 
 // Customer storefront pages
 import Home from '../pages/customer/Home';
@@ -26,6 +28,21 @@ import Stock from '../pages/admin/Stock';
 import Promotions from '../pages/admin/Promotions';
 import Invoices from '../pages/admin/Invoices';
 import Loyalty from '../pages/admin/Loyalty';
+
+// Warehouse pages
+import WarehouseDashboard from '../pages/warehouse/Dashboard';
+import StockImport from '../pages/warehouse/StockImport';
+import OrderPreparation from '../pages/warehouse/OrderPreparation';
+import OrderPacker from '../pages/warehouse/OrderPacker';
+
+// Guard: only warehouse or admin can access /warehouse routes
+function WarehouseGuard({ children }) {
+    const { isAuthenticated, isWarehouse, loading } = useAuth();
+    if (loading) return null;
+    if (!isAuthenticated) return <Navigate to="/login" replace />;
+    if (!isWarehouse) return <Navigate to="/" replace />;
+    return children;
+}
 
 export default function AppRoutes() {
     return (
@@ -56,6 +73,47 @@ export default function AppRoutes() {
                 <Route path="settings" element={<Settings />} />
             </Route>
 
+            {/* Warehouse Interface Routes */}
+            <Route
+                path="/warehouse"
+                element={
+                    <WarehouseGuard>
+                        <WarehouseLayout>
+                            <WarehouseDashboard />
+                        </WarehouseLayout>
+                    </WarehouseGuard>
+                }
+            />
+            <Route
+                path="/warehouse/import"
+                element={
+                    <WarehouseGuard>
+                        <WarehouseLayout>
+                            <StockImport />
+                        </WarehouseLayout>
+                    </WarehouseGuard>
+                }
+            />
+            <Route
+                path="/warehouse/orders"
+                element={
+                    <WarehouseGuard>
+                        <WarehouseLayout>
+                            <OrderPreparation />
+                        </WarehouseLayout>
+                    </WarehouseGuard>
+                }
+            />
+            <Route
+                path="/warehouse/orders/:orderId"
+                element={
+                    <WarehouseGuard>
+                        <WarehouseLayout>
+                            <OrderPacker />
+                        </WarehouseLayout>
+                    </WarehouseGuard>
+                }
+            />
 
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />

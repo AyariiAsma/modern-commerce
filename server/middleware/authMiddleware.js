@@ -25,6 +25,15 @@ export const requireAdmin = (req, res, next) => {
     });
 };
 
+export const requireWarehouseOrAdmin = (req, res, next) => {
+    requireAuth(req, res, () => {
+        if (req.user.role !== 'admin' && req.user.role !== 'warehouse') {
+            return res.status(403).json({ message: 'Access denied. Warehouse privileges required.' });
+        }
+        next();
+    });
+};
+
 // Optional auth context (populates req.user if token is present, but doesn't block if not)
 export const optionalAuth = (req, res, next) => {
     const authHeader = req.headers.authorization;

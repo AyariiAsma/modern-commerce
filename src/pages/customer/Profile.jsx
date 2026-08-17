@@ -240,16 +240,18 @@ export default function Profile() {
                 >
                     My Addresses
                 </button>
-                <button
-                    onClick={() => setActiveTab('loyalty')}
-                    className={`pb-4 px-6 text-sm font-bold border-b-2 transition flex items-center gap-1 ${
-                        activeTab === 'loyalty'
-                            ? 'border-amber-500 text-amber-600'
-                            : 'border-transparent text-slate-400 hover:text-slate-600'
-                    }`}
-                >
-                    <Star className="h-3.5 w-3.5" /> Loyalty
-                </button>
+                {loyaltyData && loyaltyData.enabled && (
+                    <button
+                        onClick={() => setActiveTab('loyalty')}
+                        className={`pb-4 px-6 text-sm font-bold border-b-2 transition flex items-center gap-1 ${
+                            activeTab === 'loyalty'
+                                ? 'border-amber-500 text-amber-600'
+                                : 'border-transparent text-slate-400 hover:text-slate-600'
+                        }`}
+                    >
+                        <Star className="h-3.5 w-3.5" /> Loyalty
+                    </button>
+                )}
             </div>
 
             {/* Tab: Orders */}
@@ -336,42 +338,126 @@ export default function Profile() {
                         </div>
                     )}
                     
-                    {/* Order Details Modal */}
+                    {/* Order Details Modal (Clear Invoice / Bon de Commande style) */}
                     {(selectedOrderDetails || detailsLoading) && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-                            <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl p-6">
-                                <div className="flex justify-between items-center border-b border-slate-100 pb-4 mb-4">
-                                    <h3 className="font-bold text-slate-800 text-lg">Order Details</h3>
-                                    <button onClick={() => setSelectedOrderDetails(null)} className="text-slate-400 hover:text-slate-600">
-                                        <Trash2 className="h-4 w-4 hidden" /> Close
+                            <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 sm:p-8">
+                                <div className="flex justify-between items-center border-b border-slate-100 pb-4 mb-6">
+                                    <div>
+                                        <h3 className="font-black text-slate-800 text-lg">Purchase Order / Bon de Commande</h3>
+                                        <p className="text-slate-400 text-xs mt-0.5">Order Ref: <span className="font-mono font-bold text-slate-700">{selectedOrderDetails?.order_number || selectedOrderDetails?.id}</span></p>
+                                    </div>
+                                    <button 
+                                        onClick={() => setSelectedOrderDetails(null)} 
+                                        className="text-xs font-bold px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition"
+                                    >
+                                        Close
                                     </button>
                                 </div>
                                 {detailsLoading ? (
-                                    <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin text-indigo-600" /></div>
+                                    <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin text-indigo-650" /></div>
                                 ) : (
-                                    <div className="space-y-6">
-                                        {/* Timeline */}
-                                        <div>
-                                            <h4 className="font-bold text-slate-700 mb-4">Timeline</h4>
-                                            <div className="space-y-4 border-l-2 border-indigo-100 ml-2 pl-4">
-                                                {selectedOrderDetails.history?.map((hist, i) => (
-                                                    <div key={i} className="relative">
-                                                        <div className="absolute -left-6 top-1 h-3 w-3 rounded-full bg-indigo-600 border-2 border-white"></div>
-                                                        <p className="text-xs text-slate-400">{new Date(hist.created_at).toLocaleString()}</p>
-                                                        <p className="text-sm font-bold text-slate-800">Status changed to <span className={`px-2 py-0.5 rounded-md text-[10px] ${getStatusColor(hist.new_status)}`}>{hist.new_status}</span></p>
-                                                        {hist.comment && <p className="text-xs text-slate-500 italic mt-1">{hist.comment}</p>}
+                                    <div className="space-y-6 text-xs sm:text-sm text-slate-600">
+                                        
+                                        {/* Order Meta Info Grid */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-slate-50 border border-slate-100 rounded-2xl p-4 sm:p-5">
+                                            <div className="space-y-2">
+                                                <p className="text-[10px] uppercase tracking-widest font-black text-slate-400">Order Information</p>
+                                                <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
+                                                    <span className="font-semibold text-slate-400">Date Placed:</span>
+                                                    <span className="font-bold text-slate-700">{new Date(selectedOrderDetails.created_at || selectedOrderDetails.createdAt).toLocaleDateString()}</span>
+                                                    <span className="font-semibold text-slate-400">Payment Status:</span>
+                                                    <span className="font-bold text-slate-700 capitalize">{selectedOrderDetails.payment_status || 'Pending'}</span>
+                                                    <span className="font-semibold text-slate-400">Payment Method:</span>
+                                                    <span className="font-bold text-slate-700">{selectedOrderDetails.payment_method}</span>
+                                                    <span className="font-semibold text-slate-400">Order Status:</span>
+                                                    <span className={`inline-flex px-2 py-0.5 rounded-full font-bold text-[9px] w-fit ${getStatusColor(selectedOrderDetails.status)}`}>
+                                                        {selectedOrderDetails.status}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="space-y-2 border-t sm:border-t-0 sm:border-l border-slate-200 pt-4 sm:pt-0 sm:pl-6">
+                                                <p className="text-[10px] uppercase tracking-widest font-black text-slate-400">Delivery Address</p>
+                                                <div className="text-xs space-y-1 text-slate-700">
+                                                    <p className="font-bold">{selectedOrderDetails.shipping_first_name} {selectedOrderDetails.shipping_last_name}</p>
+                                                    <p className="text-slate-500 leading-relaxed">
+                                                        {selectedOrderDetails.shipping_address_line_1}
+                                                        {selectedOrderDetails.shipping_address_line_2 && `, ${selectedOrderDetails.shipping_address_line_2}`}
+                                                        <br />
+                                                        {selectedOrderDetails.shipping_city}, {selectedOrderDetails.shipping_postal_code}, {selectedOrderDetails.shipping_country}
+                                                    </p>
+                                                    <p className="text-slate-400 font-semibold mt-1">Phone: {selectedOrderDetails.shipping_phone}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Styled Table for Items */}
+                                        <div className="border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
+                                            <table className="w-full text-left text-xs border-collapse">
+                                                <thead>
+                                                    <tr className="bg-slate-50/75 border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider">
+                                                        <th className="p-3 pl-4">Product Name</th>
+                                                        <th className="p-3 text-center">Qty</th>
+                                                        <th className="p-3 text-right">Unit Price (HT)</th>
+                                                        <th className="p-3 text-center">TVA</th>
+                                                        <th className="p-3 text-right pr-4">Total (TTC)</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-50 text-slate-700">
+                                                    {selectedOrderDetails.items?.map((item, idx) => {
+                                                        const priceHt = item.unit_price_ht !== undefined && item.unit_price_ht !== null ? item.unit_price_ht : item.unit_price;
+                                                        const tvaRate = item.tva_rate !== undefined ? item.tva_rate : 0;
+                                                        const totalTtc = item.total_ttc !== undefined && item.total_ttc !== null ? item.total_ttc : item.total_price;
+                                                        return (
+                                                            <tr key={idx} className="hover:bg-slate-50/20">
+                                                                <td className="p-3 pl-4 font-bold text-slate-800">{item.product_name}</td>
+                                                                <td className="p-3 text-center font-semibold">{item.quantity}</td>
+                                                                <td className="p-3 text-right font-mono text-slate-500">{currency}{priceHt.toFixed(2)}</td>
+                                                                <td className="p-3 text-center font-mono text-slate-500">{tvaRate}%</td>
+                                                                <td className="p-3 text-right pr-4 font-bold text-slate-800">{currency}{totalTtc.toFixed(2)}</td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        {/* Financial Breakdown (Bon de commande totals) */}
+                                        <div className="flex flex-col items-end pt-2">
+                                            <div className="w-full sm:w-80 space-y-2 border-t border-slate-100 pt-4 text-xs">
+                                                <div className="flex justify-between text-slate-500">
+                                                    <span>Subtotal (HT)</span>
+                                                    <span className="font-semibold text-slate-800">{currency}{(selectedOrderDetails.subtotal_ht || selectedOrderDetails.subtotal || 0).toFixed(2)}</span>
+                                                </div>
+                                                <div className="flex justify-between text-slate-500">
+                                                    <span>Total TVA</span>
+                                                    <span className="font-semibold text-slate-800">{currency}{(selectedOrderDetails.total_tva || 0).toFixed(2)}</span>
+                                                </div>
+                                                <div className="flex justify-between text-slate-500">
+                                                    <span>Shipping Cost</span>
+                                                    <span className="font-semibold text-slate-800">{currency}{(selectedOrderDetails.shipping_cost || 0).toFixed(2)}</span>
+                                                </div>
+                                                {selectedOrderDetails.discount > 0 && (
+                                                    <div className="flex justify-between text-red-500 font-semibold">
+                                                        <span>Fidelity Discount</span>
+                                                        <span>-{currency}{selectedOrderDetails.discount.toFixed(2)}</span>
                                                     </div>
-                                                ))}
+                                                )}
+                                                <div className="border-t border-slate-200 pt-2 flex justify-between font-black text-slate-900 text-sm">
+                                                    <span>Net Total (TTC)</span>
+                                                    <span>{currency}{(selectedOrderDetails.total_paid || selectedOrderDetails.total || 0).toFixed(2)}</span>
+                                                </div>
                                             </div>
                                         </div>
                                         
-                                        {/* Documents */}
+                                        {/* Invoices Documents */}
                                         {selectedOrderDetails.invoices?.length > 0 && (
                                             <div className="border-t border-slate-100 pt-4">
-                                                <h4 className="font-bold text-slate-700 mb-3">Documents</h4>
+                                                <h4 className="font-bold text-slate-700 mb-3">Downloadable Documents</h4>
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                     {selectedOrderDetails.invoices.map((inv, i) => (
-                                                        <div key={i} className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex justify-between items-center">
+                                                        <div key={i} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex justify-between items-center shadow-sm">
                                                             <div>
                                                                 <p className="text-xs font-bold text-slate-800">Invoice {inv.invoice_number}</p>
                                                                 <p className="text-[10px] text-slate-500">{new Date(inv.invoice_date).toLocaleDateString()}</p>
@@ -381,7 +467,7 @@ export default function Profile() {
                                                                     href={`http://localhost:5001${inv.pdf_path}`} 
                                                                     target="_blank" 
                                                                     rel="noopener noreferrer"
-                                                                    className="bg-indigo-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg hover:bg-slate-900 transition"
+                                                                    className="bg-indigo-600 text-white text-[10px] font-bold px-4 py-2 rounded-xl hover:bg-slate-900 transition shadow"
                                                                 >
                                                                     Download PDF
                                                                 </a>
@@ -392,14 +478,16 @@ export default function Profile() {
                                             </div>
                                         )}
                                         
-                                        {/* Items */}
+                                        {/* Status Histories timeline */}
                                         <div className="border-t border-slate-100 pt-4">
-                                            <h4 className="font-bold text-slate-700 mb-3">Items Ordered</h4>
-                                            <div className="divide-y divide-slate-50 text-xs">
-                                                {selectedOrderDetails.items?.map((item, idx) => (
-                                                    <div key={idx} className="flex justify-between py-2">
-                                                        <span>{item.quantity}x {item.product_name}</span>
-                                                        <span className="font-bold">{currency}{item.total_price.toFixed(2)}</span>
+                                            <h4 className="font-bold text-slate-700 mb-3">Order Status History</h4>
+                                            <div className="space-y-4 border-l-2 border-indigo-100 ml-2 pl-4">
+                                                {selectedOrderDetails.history?.map((hist, i) => (
+                                                    <div key={i} className="relative">
+                                                        <div className="absolute -left-6 top-1 h-3.5 w-3.5 rounded-full bg-indigo-650 border-2 border-white"></div>
+                                                        <p className="text-[10px] text-slate-400 font-semibold">{new Date(hist.created_at).toLocaleString()}</p>
+                                                        <p className="text-xs font-bold text-slate-800">Status changed to <span className={`px-2 py-0.5 rounded-md text-[9px] ${getStatusColor(hist.new_status)}`}>{hist.new_status}</span></p>
+                                                        {hist.comment && <p className="text-xs text-slate-500 italic mt-0.5">{hist.comment}</p>}
                                                     </div>
                                                 ))}
                                             </div>

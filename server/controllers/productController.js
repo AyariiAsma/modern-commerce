@@ -33,9 +33,9 @@ export const getAllProducts = async (req, res) => {
     const params = [];
 
     if (search) {
-        sql += ` AND (p.name LIKE ? OR p.description LIKE ? OR p.SKU LIKE ?)`;
+        sql += ` AND (p.name LIKE ? OR p.description LIKE ? OR p.SKU LIKE ? OR p.barcode LIKE ?)`;
         const searchPattern = `%${search}%`;
-        params.push(searchPattern, searchPattern, searchPattern);
+        params.push(searchPattern, searchPattern, searchPattern, searchPattern);
     }
 
     if (category) {
@@ -131,7 +131,7 @@ export const getProductById = async (req, res) => {
 };
 
 export const createProduct = async (req, res) => {
-    const { category_id, name, description, price, discount_price, SKU, stock_quantity, status, featured, images, tva_rate } = req.body;
+    const { category_id, name, description, price, discount_price, SKU, barcode, stock_quantity, status, featured, images, tva_rate } = req.body;
     const userId = req.user?.id || null;
 
     if (!category_id || !name || !price || !SKU) {
@@ -151,8 +151,8 @@ export const createProduct = async (req, res) => {
 
         // Insert product
         const result = await run(
-            `INSERT INTO products (category_id, name, slug, description, price, discount_price, SKU, status, featured, tva_rate)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO products (category_id, name, slug, description, price, discount_price, SKU, barcode, status, featured, tva_rate)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 category_id,
                 name,
@@ -161,6 +161,7 @@ export const createProduct = async (req, res) => {
                 parseFloat(price),
                 discount_price ? parseFloat(discount_price) : null,
                 SKU,
+                barcode || null,
                 status || 'active',
                 featured ? 1 : 0,
                 parseFloat(tva_rate) || 0
@@ -203,7 +204,7 @@ export const createProduct = async (req, res) => {
 
 export const updateProduct = async (req, res) => {
     const { id } = req.params;
-    const { category_id, name, description, price, discount_price, SKU, status, featured, images, tva_rate } = req.body;
+    const { category_id, name, description, price, discount_price, SKU, barcode, status, featured, images, tva_rate } = req.body;
     // Note: stock_quantity update from this endpoint is deprecated. Admins should use /api/stock/adjust.
     // However, if we need to support it, we could handle it. We will just ignore it here to force using Stock manager.
 
@@ -224,7 +225,7 @@ export const updateProduct = async (req, res) => {
 
         await run(
             `UPDATE products
-             SET category_id = ?, name = ?, slug = ?, description = ?, price = ?, discount_price = ?, SKU = ?, status = ?, featured = ?, tva_rate = ?, updated_at = CURRENT_TIMESTAMP
+             SET category_id = ?, name = ?, slug = ?, description = ?, price = ?, discount_price = ?, SKU = ?, barcode = ?, status = ?, featured = ?, tva_rate = ?, updated_at = CURRENT_TIMESTAMP
              WHERE id = ?`,
             [
                 category_id !== undefined ? category_id : product.category_id,
@@ -234,6 +235,7 @@ export const updateProduct = async (req, res) => {
                 price !== undefined ? parseFloat(price) : product.price,
                 discount_price !== undefined ? (discount_price ? parseFloat(discount_price) : null) : product.discount_price,
                 SKU || product.SKU,
+                barcode !== undefined ? barcode : product.barcode,
                 status || product.status,
                 featured !== undefined ? (featured ? 1 : 0) : product.featured,
                 tva_rate !== undefined ? parseFloat(tva_rate) : product.tva_rate,
