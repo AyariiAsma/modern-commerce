@@ -24,15 +24,38 @@ export const updateLoyaltySettings = async (req, res, next) => {
     } = req.body;
     
     try {
-        await run(`
-            INSERT INTO loyalty_settings (
-                fidelity_enabled, required_orders, required_amount, qualifying_statuses, amount_method, notify_days_before, min_purchase_amount,
-                code_expiration_days, code_format, discount_type, discount_value, usage_limit, is_single_use
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-            fidelity_enabled ? 1 : 0, required_orders, required_amount, JSON.stringify(qualifying_statuses || []), amount_method, JSON.stringify(notify_days_before || []), min_purchase_amount,
-            code_expiration_days, code_format, discount_type, discount_value, usage_limit, is_single_use ? 1 : 0
-        ]);
+        // Try to update the existing row first
+        const existing = await queryOne('SELECT id FROM loyalty_settings LIMIT 1');
+        if (existing) {
+            await run(`
+                UPDATE loyalty_settings SET
+                    fidelity_enabled = ?, required_orders = ?, required_amount = ?,
+                    qualifying_statuses = ?, amount_method = ?, notify_days_before = ?,
+                    min_purchase_amount = ?, code_expiration_days = ?, code_format = ?,
+                    discount_type = ?, discount_value = ?, usage_limit = ?, is_single_use = ?
+                WHERE id = ?
+            `, [
+                fidelity_enabled ? 1 : 0, required_orders || 4, required_amount || 150,
+                JSON.stringify(qualifying_statuses || ['Delivered']), amount_method || 'total_ht_excl_shipping',
+                JSON.stringify(notify_days_before || [10, 5, 1]), min_purchase_amount || 0,
+                code_expiration_days || 30, code_format || 'FID-{RANDOM}', discount_type || 'percentage',
+                discount_value || 10, usage_limit || 1, is_single_use ? 1 : 0,
+                existing.id
+            ]);
+        } else {
+            await run(`
+                INSERT INTO loyalty_settings (
+                    fidelity_enabled, required_orders, required_amount, qualifying_statuses, amount_method, notify_days_before, min_purchase_amount,
+                    code_expiration_days, code_format, discount_type, discount_value, usage_limit, is_single_use
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `, [
+                fidelity_enabled ? 1 : 0, required_orders || 4, required_amount || 150,
+                JSON.stringify(qualifying_statuses || ['Delivered']), amount_method || 'total_ht_excl_shipping',
+                JSON.stringify(notify_days_before || [10, 5, 1]), min_purchase_amount || 0,
+                code_expiration_days || 30, code_format || 'FID-{RANDOM}', discount_type || 'percentage',
+                discount_value || 10, usage_limit || 1, is_single_use ? 1 : 0
+            ]);
+        }
         res.json({ success: true, message: 'Settings updated successfully' });
     } catch (err) {
         next(err);

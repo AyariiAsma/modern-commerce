@@ -38,6 +38,7 @@ export default function Products() {
             category: categories[0]?.slug || '',
             image: '',
             SKU: `SKU-${Math.floor(1000 + Math.random() * 9000)}`,
+            barcode: '',
             featured: false,
             tva_rate: 19
         });
@@ -60,6 +61,7 @@ export default function Products() {
             category: categorySlug,
             image: prod.image,
             SKU: prod.SKU || '',
+            barcode: prod.barcode || '',
             featured: prod.featured === 1 || prod.featured === true,
             tva_rate: prod.tva_rate !== undefined && prod.tva_rate !== null ? prod.tva_rate : 0
         });
@@ -91,6 +93,7 @@ export default function Products() {
             price: parseFloat(data.price),
             discount_price: data.discountPrice ? parseFloat(data.discountPrice) : null,
             SKU: data.SKU || `SKU-${Date.now().toString().slice(-6)}`,
+            barcode: data.barcode || null,
             images: [data.image], // pass primary image in images array
             featured: data.featured ? 1 : 0,
             tva_rate: data.tva_rate ? parseFloat(data.tva_rate) : 0,
@@ -138,7 +141,7 @@ export default function Products() {
                             <tr className="border-b border-slate-100 bg-slate-50/50 text-slate-400 uppercase tracking-widest font-bold">
                                 <th className="p-4">{t('productTitleLabel')}</th>
                                 <th className="p-4">{t('categoryChannel')}</th>
-                                <th className="p-4">SKU</th>
+                                <th className="p-4">SKU / Barcode</th>
                                 <th className="p-4">{t('retailPrice')}</th>
                                 <th className="p-4">TVA</th>
                                 <th className="p-4">{t('stockCountLabel')}</th>
@@ -160,7 +163,10 @@ export default function Products() {
                                             </div>
                                         </td>
                                         <td className="p-4 capitalize text-slate-500">{prod.category_name || prod.category}</td>
-                                        <td className="p-4 font-mono text-slate-500">{prod.SKU || 'N/A'}</td>
+                                        <td className="p-4 font-mono text-slate-500">
+                                            <div className="text-[11px] font-bold text-slate-700">{prod.SKU || 'N/A'}</div>
+                                            {prod.barcode && <div className="text-[10px] text-slate-450">Barcode: {prod.barcode}</div>}
+                                        </td>
                                         <td className="p-4">
                                             {discountPriceVal !== null && discountPriceVal !== undefined ? (
                                                 <div className="space-x-1.5">
@@ -215,9 +221,16 @@ export default function Products() {
                     
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
-                            <label className="text-slate-400 uppercase tracking-widest text-[10px]">Product SKU</label>
+                            <label className="text-slate-400 uppercase tracking-widest text-[10px]">Product SKU (Reference)</label>
                             <input type="text" {...register('SKU', { required: true })} className="w-full bg-slate-50 border border-slate-200 py-2 px-3 rounded-lg text-slate-800 outline-none" />
                         </div>
+                        <div className="space-y-1">
+                            <label className="text-slate-400 uppercase tracking-widest text-[10px]">Barcode</label>
+                            <input type="text" {...register('barcode')} placeholder="e.g. 6191234567890" className="w-full bg-slate-50 border border-slate-200 py-2 px-3 rounded-lg text-slate-800 outline-none" />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
                             <label className="text-slate-400 uppercase tracking-widest text-[10px]">Highlight Type</label>
                             <div className="flex items-center pt-2 gap-2">

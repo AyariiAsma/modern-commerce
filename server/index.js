@@ -18,6 +18,7 @@ import stockRoutes from './routes/stockRoutes.js';
 import promotionRoutes from './routes/promotionRoutes.js';
 import invoiceRoutes from './routes/invoiceRoutes.js';
 import loyaltyRoutes from './routes/loyaltyRoutes.js';
+import warehouseRoutes from './routes/warehouseRoutes.js';
 import { mountDbBrowser } from './utils/dbBrowser.js';
 
 dotenv.config();
@@ -49,6 +50,7 @@ app.use('/api/stock', stockRoutes);
 app.use('/api/promotions', promotionRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/loyalty', loyaltyRoutes);
+app.use('/api/warehouse', warehouseRoutes);
 
 // Root path fallback
 app.get('/', (req, res) => {
