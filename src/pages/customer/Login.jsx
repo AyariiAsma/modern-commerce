@@ -25,7 +25,7 @@ export default function Login() {
         setLoading(true);
         setApiError('');
         await new Promise(resolve => setTimeout(resolve, 800));
-        const result = login(data.email, data.password);
+        const result = await login(data.email, data.password);
         setLoading(false);
         if (result.success) {
             navigate(from, { replace: true });

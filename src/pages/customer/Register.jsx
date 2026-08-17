@@ -22,7 +22,7 @@ export default function Register() {
         setLoading(true);
         setApiError('');
         await new Promise(resolve => setTimeout(resolve, 800));
-        const result = authRegister(data.name, data.email, data.password);
+        const result = await authRegister(data.name, data.email, data.password);
         setLoading(false);
         if (result.success) {
             navigate('/');
